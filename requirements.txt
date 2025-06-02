@@ -1,4 +1,5 @@
 fastapi
 gradio_client
+httpx
 uvicorn[standard]
 pydantic
