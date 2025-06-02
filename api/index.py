@@ -12,7 +12,7 @@ class ImageRequest(BaseModel):
 async def generate_image(request: ImageRequest):
     try:
         client = Client("Heartsync/NSFW-Uncensored")
-        result = client.predict(
+        response = client.predict(
             prompt=request.prompt,
             negative_prompt="text, talk bubble, low quality, watermark, signature",
             seed=0,
@@ -24,10 +24,15 @@ async def generate_image(request: ImageRequest):
             api_name="/infer"
         )
 
-        with open(result, "rb") as image_file:
+        # Extract the file path string from the response dictionary
+        filepath = response["result"]
+
+        # Open the image file and encode it to base64
+        with open(filepath, "rb") as image_file:
             base64_data = base64.b64encode(image_file.read()).decode("utf-8")
 
         return {"image": base64_data}
+
     except Exception as e:
         return {"error": str(e)}
 
