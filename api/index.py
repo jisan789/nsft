@@ -1,7 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from gradio_client import Client
 from pydantic import BaseModel
-import base64
 
 app = FastAPI()
 
@@ -24,12 +23,16 @@ async def generate_image(request: ImageRequest):
             api_name="/infer"
         )
 
-        with open(result, "rb") as image_file:
-            base64_data = base64.b64encode(image_file.read()).decode("utf-8")
+        # Debug prints to check output type and content
+        print("Result type:", type(result))
+        # print("Result content:", result)  # Uncomment if you want to see full output
 
-        return {"image": base64_data}
+        # If the result is already a base64 encoded string or a dict with image data, just return it
+        # Here we assume it's a base64 string, so return directly:
+        return {"image": result}
+
     except Exception as e:
-        return {"error": str(e)}
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
