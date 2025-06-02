@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from gradio_client import Client
 from pydantic import BaseModel
 import base64
-from io import BytesIO
+import httpx
 
 app = FastAPI()
 
@@ -13,8 +13,6 @@ class ImageRequest(BaseModel):
 async def generate_image(request: ImageRequest):
     try:
         client = Client("Heartsync/NSFW-Uncensored")
-        # This returns the image bytes or URL, you need to verify what it returns
-        # The old code assumed a filename; here we want raw bytes
 
         result = client.predict(
             prompt=request.prompt,
@@ -28,21 +26,24 @@ async def generate_image(request: ImageRequest):
             api_name="/infer"
         )
 
-        # If 'result' is image bytes or a PIL image, convert it to base64
-        # If it's a filepath, you'll need to download or handle differently
+        # Check what type of result we got
+        if isinstance(result, str) and result.startswith("http"):
+            # If result is an image URL, fetch the image bytes
+            async with httpx.AsyncClient() as http_client:
+                response = await http_client.get(result)
+                response.raise_for_status()
+                image_bytes = response.content
 
-        # Assuming result is a PIL.Image or bytes, let's handle bytes:
-        if isinstance(result, bytes):
-            image_bytes = result
-        elif hasattr(result, "read"):  # file-like
-            image_bytes = result.read()
+            base64_data = base64.b64encode(image_bytes).decode("utf-8")
+            return {"image": base64_data}
+
+        elif isinstance(result, bytes):
+            # If result is raw bytes
+            base64_data = base64.b64encode(result).decode("utf-8")
+            return {"image": base64_data}
+
         else:
-            # If result is a URL (string), fetch it? Vercel does not allow downloads inside serverless function easily
-            # So let's error for now
-            raise HTTPException(status_code=500, detail="Unexpected result type from Gradio Client")
+            raise HTTPException(status_code=500, detail=f"Unexpected result type: {type(result)}")
 
-        base64_data = base64.b64encode(image_bytes).decode("utf-8")
-
-        return {"image": base64_data}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
