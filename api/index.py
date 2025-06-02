@@ -26,19 +26,24 @@ async def generate_image(request: ImageRequest):
             api_name="/infer"
         )
 
-        # Check what type of result we got
-        if isinstance(result, str) and result.startswith("http"):
-            # If result is an image URL, fetch the image bytes
-            async with httpx.AsyncClient() as http_client:
-                response = await http_client.get(result)
-                response.raise_for_status()
-                image_bytes = response.content
+        # Log for debugging (in Vercel logs or locally)
+        print(f"Result (type={type(result)}): {result}")
 
-            base64_data = base64.b64encode(image_bytes).decode("utf-8")
-            return {"image": base64_data}
+        if isinstance(result, str):
+            if result.startswith("http"):
+                # It's an image URL, fetch the image bytes
+                async with httpx.AsyncClient() as http_client:
+                    response = await http_client.get(result)
+                    response.raise_for_status()
+                    image_bytes = response.content
+
+                base64_data = base64.b64encode(image_bytes).decode("utf-8")
+                return {"image": base64_data}
+            else:
+                # It's some other string — just return it in the response for now
+                return {"result": result}
 
         elif isinstance(result, bytes):
-            # If result is raw bytes
             base64_data = base64.b64encode(result).decode("utf-8")
             return {"image": base64_data}
 
